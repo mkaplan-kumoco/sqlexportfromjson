@@ -12,7 +12,7 @@
 # LoyaltyAccount table has duplicated column name for "href". After generate DDL file, you need to change column name to one of them.
 #
 # Mehmet Kaplan
-# v0.0.1
+# v0.0.2
 # 
 
 import json, os
@@ -21,6 +21,7 @@ from datetime import datetime
 #directory = './docs'
 directory = './CIM-Data-Dictionary-master/docs'
 pDate = datetime.today().strftime('%Y%m%d%H%M%S')
+pDbSchema='cimdata'
 
 def get_type(x):
     return {
@@ -32,6 +33,7 @@ def get_type(x):
         'object' : 'TEXT'        
     }.get(x, 'TEXT') 
 
+
 def get_table(x):
     return {
         'desc'  : '_desc',
@@ -41,21 +43,27 @@ def get_table(x):
         'unique': '_unique'
     }.get(x,x) 
 
-def parse_column(ptype, pname):
+
+def parse_column(ptype, ptblname, pcolumn, pname):
   pResult=''
+  pConst=''
   if ptype =='$ref':
     pTempName= pname.split('#')[1]
-    pResult=' integer  REFERENCES ' + pTempName + ' ( ' + pTempName.lower() +str('_id') +' ) '
+    #pResult=' integer  REFERENCES ' + pDbSchema + '.' + pTempName + ' ( ' + pTempName.lower() +str('_id') +' ) '
+    pResult=' integer '
+    pConst='ALTER TABLE ' + pDbSchema + '.' + ptblname + ' ADD CONSTRAINT ' + ptblname + '_' + pcolumn + '_fkey FOREIGN KEY (' + pcolumn + ') REFERENCES ' + pDbSchema + '.' + pTempName + ' (' + pTempName.lower() +str('_id') +') ; \n'
   else:
     pResult=get_type(pname)  
-  return pResult
+    pConst= ''
+  return pResult, pConst
 
 
-def write_file (pLine) :
-  with open('CIM-Table-DDL-' + str(pDate) + '.sql', 'a') as f:
-    f.write(pLine)
-    f.write('\n')
-    f.close()   
+def write_file (pFType, pLine) :
+  if len(pLine)>1 :
+    with open('CIM-Table-DDL-' + pFType + '-' + str(pDate) + '.sql', 'a') as f:
+      f.write(pLine)
+      f.write('\n')
+      f.close()   
 
 
 
@@ -66,20 +74,45 @@ def main():
         docket_content = f.read()
         schema = json.loads(docket_content)
         pTableName=str(schema['title'])
-        #print ('Table Name: ' + pTableName)
-        pSQL='CREATE TABLE IF NOT EXISTS ' + pTableName +' ( ' + pTableName.lower() + '_id serial PRIMARY KEY '
+        print ('Table Name: ' + pTableName)
+        pSQL='CREATE TABLE IF NOT EXISTS ' + pDbSchema + '.' + pTableName +' ( ' + pTableName.lower() + '_id serial PRIMARY KEY '
+        pCNST =''
+        pSTmp1=''
+        pSTmp2=''
 
         if schema.get('definitions').get(pTableName).get('properties') is not None:
           pTable=schema.get('definitions').get(pTableName).get('properties')
           for dtt in pTable:
              pColumn=pTable.get(dtt)
+             #print (pColumn)
              drr = get_table(dtt.lower()).replace('-','_')
              if pColumn.get('type') is None:
                pType=pColumn.get('$ref')
-               pSQL = pSQL + ' , ' + drr + ' ' + parse_column('$ref',pType)
+               pSTmp1, pSTmp2 = parse_column('$ref', pTableName, drr, pType)
+               pSQL = pSQL + ' , ' + drr + ' ' + pSTmp1
+               pCNST = pCNST + pSTmp2
              else:
-               pType=pColumn.get('type')
-               pSQL = pSQL + ' , ' + drr + ' ' + parse_column('type',pType)
+               #pType=pColumn.get('type')
+               if pColumn.get('items') is not None:
+                  if pColumn.get('items').get('$ref') is not None:
+                     pType=pColumn.get('items').get('$ref')
+                     pSTmp1, pSTmp2 = parse_column('$ref', pTableName, drr, pType)
+                     pSQL = pSQL + ' , ' + drr + ' ' + pSTmp1
+                     pCNST = pCNST + pSTmp2
+                     #pSQL = pSQL + ' , ' + drr + ' ' + parse_column('$ref', pTableName, drr, pType)
+                  else:
+                     pType=pColumn.get('type')
+                     pSTmp1, pSTmp2 = parse_column('type', pTableName, drr, pType)
+                     pSQL = pSQL + ' , ' + drr + ' ' + pSTmp1
+                     pCNST = pCNST + pSTmp2
+                     #pSQL = pSQL + ' , ' + drr + ' ' + parse_column('type', pTableName, drr, pType)
+               else:
+                  pType=pColumn.get('type')
+                  pSTmp1, pSTmp2 = parse_column('type', pTableName, drr, pType)
+                  pSQL = pSQL + ' , ' + drr + ' ' + pSTmp1
+                  pCNST = pCNST + pSTmp2
+                  #pSQL = pSQL + ' , ' + drr + ' ' + parse_column('type', pTableName, drr, pType)
+
         elif schema.get('definitions').get(pTableName).get('items') is not None:
           pTable=schema.get('definitions').get(pTableName).get('items').get('properties')
           for dtt in pTable:
@@ -87,15 +120,22 @@ def main():
              drr = get_table(dtt.lower()).replace('-','_')
              if pColumn.get('type') is None:
                pType=pColumn.get('$ref')
-               pSQL = pSQL + ' , ' + drr + ' ' + parse_column('$ref',pType) 
+               pSTmp1, pSTmp2 = parse_column('$ref', pTableName, drr, pType)
+               pSQL = pSQL + ' , ' + drr + ' ' + pSTmp1
+               pCNST = pCNST + pSTmp2
+               #pSQL = pSQL + ' , ' + drr + ' ' + parse_column('$ref', pTableName, drr, pType)
              else:
                pType=pColumn.get('type')
-               pSQL = pSQL + ' , ' + drr + ' ' + parse_column('type',pType)
+               pSTmp1, pSTmp2 = parse_column('type', pTableName, drr, pType)
+               pSQL = pSQL + ' , ' + drr + ' ' + pSTmp1
+               pCNST = pCNST + pSTmp2
+               #pSQL = pSQL + ' , ' + drr + ' ' + parse_column('type', pTableName, drr, pType)
         #else:
         #   print (pTableName + '; ; ;')
 
         pSQL = pSQL + ' ) ;'
-        write_file (pSQL)
+        write_file ('tbl', pSQL)
+        write_file ('const', pCNST)
         #print (pSQL)
 
 if __name__ == "__main__":

@@ -17,6 +17,8 @@ LoyaltyAccount table has duplicated column name for "href". After generate DDL f
 
 
 
+Version : 0.0.1
+
     # [parseDDL]#
     # [parseDDL]#
     # [parseDDL]# ls -lrth
@@ -40,4 +42,31 @@ LoyaltyAccount table has duplicated column name for "href". After generate DDL f
     # [parseDDL]#
     # [parseDDL]#
 
+
+
+Version : 0.0.2
+Table DDL and Constraint SQLs splitted.
+
+    # [sqlexportfromjson]# 
+    # [sqlexportfromjson]# ls -lrth
+    # total 8.0K
+    # drwxr-xr-x 8 root root  138 Apr  9 09:25 CIM-Data-Dictionary-master
+    # -rw-r--r-- 1 root root 5.5K Apr 15 16:10 generate_ddl_from_json.py
+    # [sqlexportfromjson]# 
+    # [sqlexportfromjson]# python3 generate_ddl_from_json.py 
+    # [sqlexportfromjson]# 
+    # [sqlexportfromjson]# ls -lrth
+    # total 648K
+    # drwxr-xr-x 8 root root  138 Apr  9 09:25 CIM-Data-Dictionary-master
+    # -rw-r--r-- 1 root root 5.5K Apr 15 16:10 generate_ddl_from_json.py
+    # -rw-r--r-- 1 root root 164K Apr 15 16:11 CIM-Table-DDL-tbl-20200415161112.sql
+    # -rw-r--r-- 1 root root 445K Apr 15 16:11 CIM-Table-DDL-const-20200415161112.sql
+    # [sqlexportfromjson]# 
+    # [sqlexportfromjson]# wc -l CIM-Table-DDL-tbl-20200415161112.sql 
+    # 624 CIM-Table-DDL-tbl-20200415161112.sql
+    # [sqlexportfromjson]# 
+    # [sqlexportfromjson]# cat CIM-Table-DDL-const-20200415161112.sql |grep "ALTER TABLE" | wc -l
+    # 2746
+    # [sqlexportfromjson]# 
+    # [sqlexportfromjson]# 
 
